@@ -34,17 +34,15 @@ while True:
             sys.exit(1)
 
         elif rc == 0:  # child
-            left_arg = args[:args.index('|')]
-            right_arg = args[args.index('|') + 1:]
-
-            if '|' in args and '>' not in left_arg and '<' not in right_arg:
+            if '|' in args:
                 pipe(args)
+                continue
 
-            if '<' in left_arg:
-                redirect(left_arg, '<')
+            if '<' in args:
+                redirect(args, '<')
 
-            if '>' in right_arg:
-                redirect(right_arg, '>')
+            if '>' in args:
+                redirect(args, '>')
                 
         elif wait:
             childPidCode = os.wait()
