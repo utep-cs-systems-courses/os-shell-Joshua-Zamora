@@ -21,26 +21,26 @@ def pipe(args):
         for fd in (pr, pw):
             os.close(fd)
 
-        left_arg = args[:args.index('|')]
+        left_args = args[:args.index('|')]
 
-        if '<' in left_arg:
-            redirect(left_arg, '<')
+        if '<' in left_args:
+            redirect(left_args, '<')
 
         try:
-            os.execve(left_arg, args, os.environ)
+            os.execve(left_args[0], left_args, os.environ)
         except FileNotFoundError:
             pass
         
         for dir in re.split(":", os.environ['PATH']):  # try each directory in the path
-            program = "%s/%s" % (dir, left_arg)
+            program = "%s/%s" % (dir, left_args[0])
 
             try:
-                os.execve(program, left_arg, os.environ)  # try to exec program
+                os.execve(program, left_args, os.environ)  # try to exec program
 
             except FileNotFoundError:  # ...expected
                 pass  # ...fail quietly
 
-        os.write(2, ("Could not exec: %s\n" % left_arg).encode())
+        os.write(2, ("Could not exec: %s\n" % left_args[0]).encode())
         sys.exit(1)
 
     else:  # parent (forked ok)
@@ -51,18 +51,18 @@ def pipe(args):
         for fd in (pw, pr):
             os.close(fd)
 
-        right_arg = args[args.index('|') + 1:]
+        right_args = args[args.index('|') + 1:]
 
-        if '>' in right_arg:
-            redirect(right_arg, '>')
+        if '>' in right_args:
+            redirect(right_args, '>')
 
         for dir in re.split(":", os.environ['PATH']):  # try each directory in the path
-            program = "%s/%s" % (dir, right_arg)
+            program = "%s/%s" % (dir, right_args[0])
 
             try:
-                os.execve(program, right_arg, os.environ)  # try to exec program
+                os.execve(program, right_args, os.environ)  # try to exec program
             except FileNotFoundError:  # ...expected
                 pass  # ...fail quietly
             
-        os.write(2, ("Could not exec: %s\n" % right_arg).encode())
+        os.write(2, ("Could not exec: %s\n" % right_args[0]).encode())
         sys.exit(1)
