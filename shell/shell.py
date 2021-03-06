@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 
 from myreadline import myreadline
 from pipe import pipe
@@ -8,41 +9,60 @@ from redirect import redirect
 
 while True:
     if 'PS1' in os.environ:
-        os.write(1, (os.environ['PS1']).encode())
+        os.write(2, (os.environ['PS1']).encode())
     else:
-        os.write(1, "$ ".encode())
+        os.write(2, "$ ".encode())
 
-        args = myreadline().strip().split(" ")
+    args = myreadline().strip().split(" ")
 
-        if args[0] == "exit":
-            os.write(2, "exiting shell...".encode())
-            sys.exit(1)
+    if args[0] == "exit":
+        os.write(2, "exiting shell...".encode())
+        sys.exit(0)
             
-        elif args[0] == "cd":
+    elif args[0] == "cd":
+        try:
             os.chdir(args[1])
+        except:
+            os.write(2, "No such directory\n".encode())
+        continue
+
+    rc = os.fork()
+    
+    wait = True
+    if '&' in args:
+        wait = False
+        args.remove('&')
+
+    if rc < 0:
+        os.write(2, "fork failed, exiting...".encode())
+        sys.exit(0)
+
+    elif rc == 0:  # child
+        if '|' in args:
+            pipe(args)
             continue
 
-        wait = True
-        if '&' in args:
-            wait = False
-            args.remove('&')
+        if '<' in args:
+            redirect(args, '<')
 
-        rc = os.fork()                                                                    
+        if '>' in args:
+            redirect(args, '>')
 
-        if rc < 0:
-            os.write(2, "fork failed, exiting...".encode())
-            sys.exit(1)
+        try:
+            os.execve(args[0], args, os.environ)
+        except FileNotFoundError:
+            pass
 
-        elif rc == 0:  # child
-            if '|' in args:
-                pipe(args)
-                continue
+        for dir in re.split(":", os.environ['PATH']):  # try each directory in the path
+            program = "%s/%s" % (dir, args[0])
 
-            if '<' in args:
-                redirect(args, '<')
+            try:
+                os.execve(program, args, os.environ)  # try to exec program
+            except FileNotFoundError:  # ...expected
+                pass  # ...fail quietly
 
-            if '>' in args:
-                redirect(args, '>')
-                
-        elif wait:
-            childPidCode = os.wait()
+        os.write(2, ("Could not exec: %s\n" % args[0]).encode())
+        sys.exit(1)
+            
+    elif wait:
+        childPidCode = os.wait()
